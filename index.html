@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+	<!--
+		License
+		
+		None of this demo may be used without written permission.
+
+		Contact steven.looman@ram-solutions.nl to ask for permission to use any part of this site (including images.)
+	-->
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+
+		<title>Demo: available estates in Arnhem</title>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+
+		<!-- jQuery Mobile -->
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.css" />
+		<script type="text/javascript" src="http://code.jquery.com/jquery-1.6.4.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.js"></script>
+
+		<!-- OpenLayers mobile -->
+		<link rel="stylesheet" href="css/style.mobile.css" type="text/css">
+		<link rel="stylesheet" href="css/style.mobile-jq.css" type="text/css">
+
+		<!-- OpenLayers/Proj4JS -->
+		<script type="text/javascript" src="http://openlayers.org/api/2.11/OpenLayers.js"></script>
+		<script type="text/javascript" src="proj4js/proj4js-compressed.js"></script>
+		<script type="text/javascript">
+			Proj4js.defs["EPSG:28992"] = "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +units=m +no_defs";
+		</script>
+
+		<script id="estate_markup" type="text/json">
+			{
+				"strokeColor": "#333333",
+				"strokeOpacity": 1,
+				"strokeWidth": 2,
+				"fillColor": "#9966cc",
+				"fillOpacity": 0.9,
+				"pointRadius": 12,
+				"graphicName": "star"
+			}
+		</script>
+
+		<style>
+			#selected_feature {
+				position: absolute;
+				top: 45px;
+				left: 55px;
+
+				background-color: #ABC;
+				z-index: 1000;
+
+				padding: 5px 10px;
+
+				border: 3px solid black;
+			}
+
+			#selected_feature a:link {
+				color: #597795;
+			}
+
+			#selected_feature a:visited {
+				color: #597795;
+			}
+
+			#selected_feature a:hover {
+				color: #597795;
+			}
+
+			#selected_feature a:active {
+				color: #597795;
+			}
+		</style>
+
+		<!-- Google Analytics -->
+		<!--
+		<script type="text/javascript">
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-25506246-5']);
+			_gaq.push(['_trackPageview']);
+
+			(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+		</script>
+		-->
+	</head>
+
+	<body>
+		<div data-role="page" id="mappage">
+			<div data-role="header">
+				<a href="#about" data-icon="about" data-role="button" data-rel="dialog" data-transition="pop">About</a>
+				<h1>Demo: available estates in Arnhem</h1>
+			</div>
+
+			<div data-role="content">
+				<div id="selected_feature">
+					Nothing selected
+				</div>
+
+				<div id="map">
+				</div>
+			</div>
+
+			<div data-role="footer">
+				<div align="right">
+					<a href="http://www.ram-solutions.nl" target="_blank"><img src="img/logo_small.png" alt="" /></a>
+				</div>
+			</div>
+		</div>
+
+		<div data-role="page" id="about">
+			<div data-role="header">
+				<h4>Demo: available estates in Arnhem</h4>
+			</div>
+
+			<div data-role="content">
+				<p>
+					This demo was made as a proof of concept by Steven Looman - <a href="http://www.ram-solutions.nl" target="_blank">Ram Solutions</a>. Feel free to contact me with your questions or other opportunities.
+				</p>
+
+				<p>
+					<div align="center">
+						<a href="http://www.ram-solutions.nl" target="_blank"><img src="img/logo_medium.png" alt="" /></a>
+					</div>
+				</p>
+			</div>
+		</div>
+
+		<script type="text/javascript">
+			var olMap;
+			var olEstatesLayer;
+			var olCenters = {
+				'arnhem': new OpenLayers.LonLat(659384.02441032, 6796368.1524594),
+				'veenendaal': new OpenLayers.LonLat(619292.80307988, 6804527.8052276),
+				'nijmegen': new OpenLayers.LonLat(651300.80867031, 6772042.068211)
+			};
+			var olZoom = 13;
+
+
+			// OpenLayers thingies
+			function setupMap() {
+				olMap = new OpenLayers.Map('map');
+
+				// setup layers
+				setupOsmLayer();
+				setupEstatesLayer();
+
+				// center
+				var city = getCity();
+				var olCenter = olCenters[city];
+				olMap.setCenter(olCenter, olZoom);
+			}
+
+			function setupOsmLayer() {
+				// add base layer
+				var osmLayer = new OpenLayers.Layer.OSM();
+				osmLayer.displayInLayerSwitcher = false;
+				olMap.addLayer(osmLayer);
+				olMap.setBaseLayer(osmLayer);
+			}
+
+			function setupEstatesLayer() {
+				var estateMarkup = JSON.parse($('#estate_markup').text());
+				olEstatesLayer = new OpenLayers.Layer.Vector('estates', {
+					projection: new OpenLayers.Projection("EPSG:28992"),
+					style: estateMarkup
+				});
+
+				olMap.addLayer(olEstatesLayer);
+
+				olEstatesLayer.events.on({
+					'featureselected': function(e) {
+						var attributes = e.feature.attributes
+						var str = '<span>' + attributes.straatnaam + ' ' + attributes.huisnummer;
+						if (attributes.huisletter) {
+							str += ' ' + attributes.huisletter;
+						}
+						if (attributes.huisnummertoevoeging) {
+							str += ' ' + attributes.huisnummertoevoeging;
+						}
+						str += '</span>';
+						str += '<br />';
+						str += '<span>' + attributes.vraagprijs + '</span>';
+						str += '<br />';
+						str += '<a href="' + attributes.url + '" target="_blank" alt="Funda">Funda</a>';
+						$('#selected_feature').html(str);
+					}
+				});
+
+
+				var layers = [ olEstatesLayer ];
+				var selectControl = new OpenLayers.Control.SelectFeature(layers);
+				olMap.addControl(selectControl);
+				selectControl.activate();
+			}
+
+
+			// estate thingies
+			function loadEstates(geoJson) {
+				var olGeoJsonFormat = new OpenLayers.Format.GeoJSON();
+				var features = olGeoJsonFormat.read(geoJson, 'FeatureCollection');
+
+				latLonProj = new OpenLayers.Projection("EPSG:900913");
+				rdNewProj = new OpenLayers.Projection("EPSG:28992");
+
+				// re-project all feature-coordinates
+				features.forEach(function(feature) {
+					feature.geometry = feature.geometry.transform(rdNewProj, latLonProj);
+				});
+
+				olEstatesLayer.addFeatures(features);
+			}
+
+			function downloadEstates() {
+				function onAjaxSuccess(data, textStatus, jqXHR) {
+					$.mobile.hidePageLoadingMsg();
+
+					loadEstates(data);
+				}
+
+				function onAjaxError(jqXHR, textStatus, errorThrown) {
+					$.mobile.hidePageLoadingMsg();
+
+					console.log('ajax error');
+					console.log(textStatus);
+				}
+
+				// show loading screen
+				$.mobile.showPageLoadingMsg('a', 'Downloading estate data');
+
+				$.ajax({
+					url: 'data/' + getCity() + '.geojson',
+					//url: 'data/arnhem.geojson',
+					dataType: 'json',
+					success: onAjaxSuccess,
+					error: onAjaxError
+				});
+			}
+
+
+			// other
+			function fixMapSize() {
+				var header = $('div[data-role="header"]:visible');
+				var footer = $('div[data-role="footer"]:visible');
+				var content = $('div[data-role="content"]:visible:visible');
+				var map = $('div[id="map"]');
+
+				var windowHeight = $(window).height();
+				var contentHeight = windowHeight - header.outerHeight() - footer.outerHeight();
+				content.height(contentHeight);
+
+				if (window.map && window.map instanceof OpenLayers.Map) {
+					map.updateSize();
+				}
+			}
+			$(window).bind("orientationchange resize pageshow", fixMapSize);
+
+			function getCity() {
+				if (location.search) {
+					var search = location.search.slice(1);
+					var t = search.split('&');
+
+					for (var i in t) {
+						var s = t[i];
+						if (s.match(/city=\w+/)) {
+							return s.slice('city='.length).toLowerCase();
+						}
+					}
+				}
+
+				return 'arnhem';
+			}
+
+			$(document).ready(function() {
+				setupMap();
+				downloadEstates();
+			});
+		</script>
+	</body>
+</html>
