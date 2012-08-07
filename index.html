@@ -261,6 +261,14 @@
 			}
 			$(window).bind("orientationchange resize pageshow", fixMapSize);
 
+			function fixTitle() {
+				var city = getCity();
+				city = city[0].toUpperCase() + city.slice(1);
+
+				$('h1[class=ui-title]').html('Demo: available estates in ' + city);
+				$('title').html('Demo: available estates in ' + city);
+			}
+
 			function getCity() {
 				if (location.search) {
 					var search = location.search.slice(1);
@@ -278,6 +286,7 @@
 			}
 
 			$(document).ready(function() {
+				fixTitle();
 				setupMap();
 				downloadEstates();
 			});
